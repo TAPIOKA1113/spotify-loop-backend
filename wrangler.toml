@@ -1,0 +1,8 @@
+name = "spotify-loop-backend"
+main = "src/index.ts"
+compatibility_date = "2024-12-24"
+
+[vars]
+CLIENT_ID = '87d99cfc875548dc941d592a023de0b6'
+CLIENT_SECRET = '39b34de995534a2ca73c0d2506344a58'
+REFRESH_TOKEN = 'AQDbElbpLMtj1DZCeLNaWHbrrQ1zeZQj71mXiuUQ2PdAX7pBbc7XljfmlK6BIR8qhpIMKO16asAzv6H5VKKsfKR0ZjDUc3YmOxnbRkr-V9-MGikdm4AZOD3ZhhQ6ViUyQsM'
