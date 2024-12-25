@@ -5,12 +5,12 @@ compatibility_date = "2024-12-24"
 
 
 [vars]
-NODE_ENV = "development"
-CLIENT_ID = '87d99cfc875548dc941d592a023de0b6'
-CLIENT_SECRET = '39b34de995534a2ca73c0d2506344a58'
-REFRESH_TOKEN = 'AQDbElbpLMtj1DZCeLNaWHbrrQ1zeZQj71mXiuUQ2PdAX7pBbc7XljfmlK6BIR8qhpIMKO16asAzv6H5VKKsfKR0ZjDUc3YmOxnbRkr-V9-MGikdm4AZOD3ZhhQ6ViUyQsM'
-
 SUPABASE_ANON_KEY = 'https://fnozrjnxuszijdyqzenb.supabase.co'
 SUPABASE_URL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZub3pyam54dXN6aWpkeXF6ZW5iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzUwMTEzODgsImV4cCI6MjA1MDU4NzM4OH0.KBiXx3WLcAYiDCgyjS3r3No-BQQTUuwUd3wUgZJ6qtY'
+
+ENVIRONMENT = "production"
+
+[env.dev]
+vars = { ENVIRONMENT = "development" }
 
 

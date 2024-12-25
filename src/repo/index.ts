@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-const isProd = false
+const isProd = true
 
 const supabaseUrl = isProd
   ? 'https://fnozrjnxuszijdyqzenb.supabase.co'

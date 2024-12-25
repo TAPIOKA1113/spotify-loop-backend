@@ -153,4 +153,14 @@ app.delete('/api/playlists/:playlistId', async (c) => {
   return c.json({ message: 'Playlist deleted' }, 200)
 })
 
+// 曲の設定時間の更新
+app.put('/api/playlists/:playlistId/:trackId', async (c) => {
+  const { playlistId, trackId } = c.req.param()
+  const { startTime, endTime } = await c.req.json()
+  console.log('リクエストデータ:', { playlistId, trackId, startTime, endTime })
+  const { data, error } = await supabase.from('playlist_tracks').update({ start_time: startTime, end_time: endTime }).eq('track_id', trackId).eq('playlist_id', playlistId)
+  if (error) return c.json({ error: error.message }, 400)
+  return c.json({ data }, 200)
+})
+
 export default app
