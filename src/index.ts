@@ -145,4 +145,12 @@ app.post('/api/playlists', async (c) => {
   }
 })
 
+// プレイリストの削除
+app.delete('/api/playlists/:playlistId', async (c) => {
+  const { playlistId } = c.req.param()
+  const { error } = await supabase.from('playlists').delete().eq('id', playlistId)
+  if (error) return c.json({ error: error.message }, 400)
+  return c.json({ message: 'Playlist deleted' }, 200)
+})
+
 export default app
