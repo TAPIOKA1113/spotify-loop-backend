@@ -1,9 +1,10 @@
 export interface Track {
     id: string;
-    trackId: string;
+    spotify_track_id: string;
     artist: string;
     name: string;
-    cover: string;
-    startTime: number;
-    endTime: number;
+    cover_url: string;
+    start_time: number;
+    end_time: number;
+    position: number;
 }

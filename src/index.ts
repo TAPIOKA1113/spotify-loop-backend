@@ -27,7 +27,7 @@ app.post('/api/user/register', async (c) => {
   return c.json({ message: 'User registered' }, 200)
 })
 
-// プレイリスト取得
+// ユーザのプレイリスト全取得
 app.get('/api/playlists/:userId', async (c) => {
   const { userId } = c.req.param()
   const { data, error } = await supabase
@@ -35,18 +35,15 @@ app.get('/api/playlists/:userId', async (c) => {
     .select(`
       id,
       name,
-      playlist_tracks (
-        track_id,
+      tracks:tracks!inner ( 
+        id,
+        spotify_track_id,
+        name,
+        artist,
+        cover_url,
         start_time,
         end_time,
-        position,
-        track:tracks!inner ( 
-          id,
-          spotify_track_id,
-          name,
-          artist,
-          cover_url
-        )
+        position
       )
     `)
     .eq('user_id', userId)
@@ -58,15 +55,7 @@ app.get('/api/playlists/:userId', async (c) => {
   const formattedPlaylists = data?.map(playlist => ({
     id: playlist.id,
     name: playlist.name,
-    tracks: playlist.playlist_tracks.map(pt => ({
-      id: pt.track_id,
-      trackId: pt.track.spotify_track_id,
-      artist: pt.track.artist,
-      name: pt.track.name,
-      cover: pt.track.cover_url,
-      startTime: pt.start_time,
-      endTime: pt.end_time
-    }))
+    tracks: playlist.tracks
   }))
 
   return c.json(formattedPlaylists)
@@ -75,70 +64,44 @@ app.get('/api/playlists/:userId', async (c) => {
 // プレイリスト作成
 app.post('/api/playlists', async (c) => {
   try {
-    const { userId, name, tracks } = await c.req.json()
+    const { userId, playlist } = await c.req.json()
 
-    console.log('リクエストデータ:', { userId, name, tracks }); // デバッグログ追加
+    console.log('リクエストデータ:', { userId, playlist }); // デバッグログ追加
     
-    // 1. まずtracksテーブルに曲情報を保存
-    const tracksToInsert = tracks.map((track: Track) => ({
-      id: uuidv4(),
-      spotify_track_id: track.id,
-      name: track.name,
-      artist: track.artist,
-      cover_url: track.cover,
-    }))
-
-    const { data: trackData, error: tracksInsertError } = await supabase
-      .from('tracks')
-      .upsert(tracksToInsert, { 
-        onConflict: 'id',  // id が既に存在する場合は更新
-      })
-      .select()
-      .single()
-
-    if (tracksInsertError) {
-      console.error('トラック情報保存エラー:', tracksInsertError)
-      return c.json({ error: tracksInsertError.message }, 400)
-    }
-
-    // 2. プレイリストの作成（既存のコード）
-    const { data: playlist, error: playlistError } = await supabase
+    // 1. まずplaylistsテーブルにプレイリスト情報を保存
+    const { error: playlistError } = await supabase
       .from('playlists')
-      .insert({ 
-        id: uuidv4(),
-        user_id: userId, 
-        name: name 
-      })
-      .select()
-      .single()
+      .insert({ id: playlist.id, user_id: userId, name: playlist.name })
 
     if (playlistError) {
       console.error('プレイリスト作成エラー:', playlistError); // デバッグログ追加
       return c.json({ error: playlistError.message }, 400)
     }
 
-  // トラックの挿入処理
-  const playlistTracks = tracks.map((track: Track, index: number) => ({
-    id: uuidv4(),
-    playlist_id: playlist.id,
-    track_id: trackData.id,
-    start_time: track.startTime,
-    end_time: track.endTime,
-    position: index
-  }))
+    // 2. tracksテーブルに曲情報を保存
 
-    console.log('プレイリストトラックデータ:', playlistTracks); // デバッグログ追加
+    const tracks = playlist.tracks.map((track: Track) => ({
+      id: track.id,
+      playlist_id: playlist.id,
+      spotify_track_id: track.spotify_track_id,
+      name: track.name,
+      artist: track.artist,
+      cover_url: track.cover_url,
+      start_time: track.start_time,
+      end_time: track.end_time,
+      position: track.position
+    }))
 
     const { error: tracksError } = await supabase
-      .from('playlist_tracks')
-      .insert(playlistTracks)
+      .from('tracks')
+      .insert(tracks)
 
     if (tracksError) {
-      console.error('トラック追加エラー:', tracksError); // デバッグログ追加
+      console.error('トラック情報保存エラー:', tracksError); // デバッグログ追加
       return c.json({ error: tracksError.message }, 400)
     }
 
-    return c.json(playlist)
+    return c.json({ message: 'Playlist created' }, 200)
   } catch (error) {
     console.error('予期せぬエラー:', error); // デバッグログ追加
     return c.json({ error: '予期せぬエラーが発生しました' }, 500)
@@ -148,19 +111,74 @@ app.post('/api/playlists', async (c) => {
 // プレイリストの削除
 app.delete('/api/playlists/:playlistId', async (c) => {
   const { playlistId } = c.req.param()
+
+  // まず、tracksテーブルからplaylist_idに紐づくデータを削除  
+  const { error: tracksError } = await supabase.from('tracks').delete().eq('playlist_id', playlistId)
+  if (tracksError) return c.json({ error: tracksError.message }, 400)
+
+  // 次に、playlistsテーブルからplaylist_idに紐づくデータを削除
   const { error } = await supabase.from('playlists').delete().eq('id', playlistId)
   if (error) return c.json({ error: error.message }, 400)
+
   return c.json({ message: 'Playlist deleted' }, 200)
 })
 
-// 曲の設定時間の更新
-app.put('/api/playlists/:playlistId/:trackId', async (c) => {
-  const { playlistId, trackId } = c.req.param()
-  const { startTime, endTime } = await c.req.json()
-  console.log('リクエストデータ:', { playlistId, trackId, startTime, endTime })
-  const { data, error } = await supabase.from('playlist_tracks').update({ start_time: startTime, end_time: endTime }).eq('track_id', trackId).eq('playlist_id', playlistId)
-  if (error) return c.json({ error: error.message }, 400)
-  return c.json({ data }, 200)
+// プレイリストの編集
+app.put('/api/playlists/:userId/:playlistId', async (c) => {
+  const { userId, playlistId } = c.req.param()
+  const { updatedPlaylist } = await c.req.json()
+
+  try {
+    // トランザクションを使用して、すべての操作を一つのアトミックな操作として実行
+    const { error: transactionError } = await supabase.from('playlists').upsert({
+      id: playlistId,
+      user_id: userId,
+      name: updatedPlaylist.name
+    })
+
+    if (transactionError) {
+      console.error('プレイリスト名更新エラー:', transactionError)
+      return c.json({ error: transactionError.message }, 400)
+    }
+
+    // トラックの更新処理
+    const tracksToUpsert = updatedPlaylist.tracks.map((track: Track) => ({
+      id: track.id,
+      playlist_id: playlistId,
+      spotify_track_id: track.spotify_track_id,
+      name: track.name,
+      artist: track.artist,
+      cover_url: track.cover_url,
+      start_time: track.start_time,
+      end_time: track.end_time,
+      position: track.position
+    }))
+
+    // 既存のトラックを全て削除してから新しいトラックを挿入
+    const { error: deleteError } = await supabase
+      .from('tracks')
+      .delete()
+      .eq('playlist_id', playlistId)
+
+    if (deleteError) {
+      console.error('トラック削除エラー:', deleteError)
+      return c.json({ error: deleteError.message }, 400)
+    }
+
+    const { error: insertError } = await supabase
+      .from('tracks')
+      .insert(tracksToUpsert)
+
+    if (insertError) {
+      console.error('トラック挿入エラー:', insertError)
+      return c.json({ error: insertError.message }, 400)
+    }
+
+    return c.json({ message: 'プレイリストが正常に更新されました' }, 200)
+  } catch (error) {
+    console.error('プレイリスト更新エラー:', error)
+    return c.json({ error: '予期せぬエラーが発生しました' }, 500)
+  }
 })
 
 export default app
